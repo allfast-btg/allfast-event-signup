@@ -251,7 +251,7 @@ app.get("/auth/constant-contact/callback",async(req,res)=>{
 app.get("/admin/constant-contact",async(req,res)=>{
   if(!adminAuthorized(req)) return res.status(401).send("Unauthorized");
   const i=await getIntegration(), connected=Boolean(i?.access_token&&i?.refresh_token);
-  res.send(`<!doctype html><meta name="viewport" content="width=device-width"><style>body{font-family:Arial;max-width:650px;margin:50px auto;padding:20px}a{display:inline-block;background:#111;color:white;padding:12px 18px;border-radius:8px;text-decoration:none}</style><h1>Constant Contact</h1><p>Status: <strong>${connected?"Connected":"Not connected"}</strong></p><p>List: ${htmlEscape(CC_LIST_NAME)}</p><a href="/auth/constant-contact/start?key=${encodeURIComponent(ADMIN_PASSWORD)}">${connected?"Reconnect":"Connect"} Constant Contact</a>`);
+  res.send(`<!doctype html><meta name="viewport" content="width=device-width"><style>body{font-family:Arial;max-width:650px;margin:50px auto;padding:20px}a{display:inline-block;background:#111;color:white;padding:12px 18px;border-radius:8px;text-decoration:none}</style><h1>Constant Contact</h1><p>Status: <strong>${connected?"Connected":"Not connected"}</strong></p><p>List: ${htmlEscape(CC_LIST_NAME)}</p><a href="/auth/constant-contact/start">${connected?"Reconnect":"Connect"} Constant Contact</a>`);
 });
 
 app.post("/api/enter",async(req,res)=>{
@@ -262,7 +262,7 @@ app.post("/api/enter",async(req,res)=>{
     const facebookFollow=req.body.facebookFollow===true||req.body.facebookFollow==="true";
     const linkedinFollow=req.body.linkedinFollow===true||req.body.linkedinFollow==="true";
     const emailConsent=req.body.emailConsent!==false&&req.body.emailConsent!=="false";
-    if(!firstName||!lastName||!email) return res.status(400).json({ok:false,error:"First name, last name, and email are required."});
+    if(!firstName||!lastName||!email||!phone) return res.status(400).json({ok:false,error:"First name, last name, email, and phone are required."});
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ok:false,error:"Please enter a valid email address."});
     if(!emailConsent) return res.status(400).json({ok:false,error:"Email permission is required to enter through this signup form."});
     const entriesCount=1+(facebookFollow?1:0)+(linkedinFollow?1:0);
@@ -287,11 +287,38 @@ app.post("/api/enter",async(req,res)=>{
   }catch(e){console.error(e);res.status(500).json({ok:false,error:"We could not save your entry. Please try again."});}
 });
 
+
+app.get("/admin/status",(req,res)=>{
+  res.json({
+    ok:true,
+    adminPasswordConfigured:Boolean(ADMIN_PASSWORD),
+    adminPasswordLength:ADMIN_PASSWORD.length
+  });
+});
+
+app.post("/admin/login",(req,res)=>{
+  if(!ADMIN_PASSWORD){
+    return res.status(503).send(adminLoginPage("ADMIN_PASSWORD is not configured on this Render service."));
+  }
+  const password=String(req.body.password||"");
+  if(password!==ADMIN_PASSWORD){
+    return res.status(401).send(adminLoginPage("Incorrect admin password."));
+  }
+  res.setHeader(
+    "Set-Cookie",
+    `allfast_admin=${encodeURIComponent(adminCookieToken())}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=28800`
+  );
+  return res.redirect("/admin");
+});
+
 app.get("/admin",async(req,res)=>{
-  if(!adminAuthorized(req)) return res.status(401).send("Unauthorized");
+  if(!adminAuthorized(req)){
+    if(!ADMIN_PASSWORD) return res.status(503).send(adminLoginPage("ADMIN_PASSWORD is not configured on this Render service."));
+    return res.status(401).send(adminLoginPage());
+  }
   const r=await pool.query(`SELECT * FROM entries WHERE event_slug=$1 ORDER BY created_at DESC`,[EVENT_SLUG]);
   const rows=r.rows.map(x=>`<tr><td>${x.id}</td><td>${htmlEscape(x.first_name)} ${htmlEscape(x.last_name)}</td><td>${htmlEscape(x.company)}</td><td>${htmlEscape(x.email)}</td><td>${x.facebook_follow?"Yes":""}</td><td>${x.linkedin_follow?"Yes":""}</td><td>${x.entries_count}</td><td>${htmlEscape(x.constant_contact_status||"")}</td></tr>`).join("");
-  res.send(`<!doctype html><meta name="viewport" content="width=device-width"><style>body{font-family:Arial;margin:24px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#eee}a{margin-right:16px}</style><h1>${htmlEscape(EVENT_NAME)} Entries</h1><p><a href="/admin/export.csv?key=${encodeURIComponent(ADMIN_PASSWORD)}">Download CSV</a><a href="/admin/constant-contact?key=${encodeURIComponent(ADMIN_PASSWORD)}">Constant Contact</a><a href="/admin/draw?key=${encodeURIComponent(ADMIN_PASSWORD)}">Draw Winner</a></p><table><tr><th>ID</th><th>Name</th><th>Company</th><th>Email</th><th>Facebook</th><th>LinkedIn</th><th>Entries</th><th>Constant Contact</th></tr>${rows}</table>`);
+  res.send(`<!doctype html><meta name="viewport" content="width=device-width"><style>body{font-family:Arial;margin:24px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#eee}a{margin-right:16px}</style><h1>${htmlEscape(EVENT_NAME)} Entries</h1><p><a href="/admin/export.csv">Download CSV</a><a href="/admin/constant-contact">Constant Contact</a><a href="/admin/draw">Draw Winner</a></p><table><tr><th>ID</th><th>Name</th><th>Company</th><th>Email</th><th>Facebook</th><th>LinkedIn</th><th>Entries</th><th>Constant Contact</th></tr>${rows}</table>`);
 });
 app.get("/admin/export.csv",async(req,res)=>{
   if(!adminAuthorized(req)) return res.status(401).send("Unauthorized");
