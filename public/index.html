@@ -4,29 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ALLFAST | Tailgate Thursday</title>
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#0a0a0a">
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 
-<header class="event-header">
-  <div class="event-header-inner">
-    <img class="allfast-logo" src="/allfast-florida-logo.png" alt="ALLFAST Fastener & Tool Supply, Inc.">
-    <div class="event-title" aria-label="Tailgate Thursday">
-      <span class="event-orange">TAILGATE</span>
-      <span class="event-blue">THURSDAY</span>
-    </div>
-  </div>
+<header class="tailgate-header">
+  <img src="/tailgate-thursday-header.jpg" alt="ALLFAST Tailgate Thursday — Deals. Demos. Food. Prizes.">
 </header>
 
 <main>
-  <section class="hero">
-    <div class="hero-pattern"></div>
-    <div class="hero-inner">
-      <h1><span class="hero-blue">ENTER</span> <span class="hero-orange">TO WIN</span></h1>
-      <p>Join the ALLFAST email list and earn up to <strong>3 entries</strong> in today’s prize drawings!</p>
-      <div class="date-pill" id="eventDate">SEPTEMBER 3, 2026</div>
-    </div>
+  <section class="enter-hero">
+    <h1><span class="blue">ENTER</span> <span class="orange">TO</span> <span class="blue">WIN</span></h1>
   </section>
 
   <section class="entry-strip" aria-label="Ways to enter">
@@ -40,7 +29,7 @@
         <div><strong>+1 ENTRY</strong><span>FOLLOW ON FACEBOOK</span></div>
       </div>
       <div class="entry-item">
-        <div class="entry-icon social-icon">in</div>
+        <div class="entry-icon social-icon linkedin-icon">in</div>
         <div><strong>+1 ENTRY</strong><span>FOLLOW ON LINKEDIN</span></div>
       </div>
     </div>
@@ -57,13 +46,17 @@
           <label>First Name *<input name="firstName" autocomplete="given-name" required></label>
           <label>Last Name *<input name="lastName" autocomplete="family-name" required></label>
         </div>
+
         <label>Company<input name="company" autocomplete="organization"></label>
         <label>Email Address *<input name="email" type="email" autocomplete="email" required></label>
         <label>Phone <span>(optional)</span><input name="phone" type="tel" autocomplete="tel"></label>
 
         <label class="consent">
           <input type="checkbox" name="emailConsent" checked required>
-          <span><b>By entering, I agree to receive occasional emails from ALLFAST Fastener &amp; Tool Supply, Inc.</b><small>I can unsubscribe at any time.</small></span>
+          <span>
+            <b>By entering, I agree to receive occasional emails from ALLFAST Fastener &amp; Tool Supply, Inc.</b>
+            <small>I can unsubscribe at any time.</small>
+          </span>
         </label>
       </div>
 
@@ -75,23 +68,42 @@
         <div class="social-card">
           <div class="social-card-main">
             <div class="platform-mark facebook">f</div>
-            <div class="platform-copy"><strong>FACEBOOK</strong><span>FOLLOW ALLFAST</span></div>
+            <div class="platform-copy">
+              <strong>FACEBOOK</strong>
+              <span>FOLLOW ALLFAST</span>
+            </div>
             <a id="facebookLink" class="open-social" target="_blank" rel="noopener">OPEN FACEBOOK →</a>
           </div>
-          <label class="bonus-check"><input type="checkbox" name="facebookFollow"><span>I FOLLOW ALLFAST ON FACEBOOK <b>+1 ENTRY</b></span></label>
+          <label class="bonus-check">
+            <input type="checkbox" name="facebookFollow">
+            <span>I FOLLOW ALLFAST ON FACEBOOK <b>+1 ENTRY</b></span>
+          </label>
         </div>
 
         <div class="social-card">
           <div class="social-card-main">
             <div class="platform-mark linkedin">in</div>
-            <div class="platform-copy"><strong>LINKEDIN</strong><span>FOLLOW ALLFAST</span></div>
+            <div class="platform-copy">
+              <strong>LINKEDIN</strong>
+              <span>FOLLOW ALLFAST</span>
+            </div>
             <a id="linkedinLink" class="open-social" target="_blank" rel="noopener">OPEN LINKEDIN →</a>
           </div>
-          <label class="bonus-check"><input type="checkbox" name="linkedinFollow"><span>I FOLLOW ALLFAST ON LINKEDIN <b>+1 ENTRY</b></span></label>
+          <label class="bonus-check">
+            <input type="checkbox" name="linkedinFollow">
+            <span>I FOLLOW ALLFAST ON LINKEDIN <b>+1 ENTRY</b></span>
+          </label>
         </div>
 
-        <button type="submit" class="primary">ENTER THE DRAWING <span>→</span></button>
-        <p class="legal">No purchase necessary. One signup per email address.<br>Social bonus entries are self-reported.</p>
+        <button type="submit" class="primary">
+          ENTER THE DRAWING <span>→</span>
+        </button>
+
+        <p class="legal">
+          No purchase necessary. One signup per email address.<br>
+          Social media bonus entries are self-reported, but subject to verification.
+        </p>
+
         <p id="status" class="status" aria-live="polite"></p>
       </div>
     </form>
@@ -107,19 +119,20 @@
           <p>Google reviews are separate from the prize drawing and do not provide an additional entry.</p>
         </div>
       </div>
-      <a id="googleReviewLink" class="review-button" target="_blank" rel="noopener"><span class="google-g">G</span> REVIEW US ON GOOGLE <b>→</b></a>
+
+      <a id="googleReviewLink" class="review-button" target="_blank" rel="noopener">
+        <span class="google-g">G</span>
+        REVIEW US ON GOOGLE
+        <b>→</b>
+      </a>
     </div>
   </section>
 </main>
 
 <footer class="site-footer">
-  <div class="footer-inner">
-    <div class="footer-item"><b>GAINESVILLE</b><span>352-376-9955</span></div>
-    <div class="footer-divider"></div>
-    <div class="footer-item"><b>JACKSONVILLE</b><span>904-724-3332</span></div>
-    <div class="footer-divider"></div>
-    <div class="footer-site">ALLFASTSUPPLY.COM</div>
-  </div>
+  <a class="footer-logo-link" href="https://allfastsupply.com" target="_blank" rel="noopener" aria-label="Visit ALLFAST Supply">
+    <img src="/allfast-florida-logo.png" alt="ALLFAST Fastener & Tool Supply, Inc.">
+  </a>
 </footer>
 
 <div id="successOverlay" class="overlay" hidden>
@@ -128,7 +141,9 @@
     <div class="section-label">YOU’RE IN</div>
     <h2>Thanks for entering!</h2>
     <p id="entryCountText">You have 1 entry in today’s drawing.</p>
-    <a id="successReviewLink" class="review-button success-review" target="_blank" rel="noopener">REVIEW ALLFAST ON GOOGLE →</a>
+    <a id="successReviewLink" class="review-button success-review" target="_blank" rel="noopener">
+      REVIEW ALLFAST ON GOOGLE →
+    </a>
     <button id="closeSuccess" type="button" class="done-button">DONE</button>
   </div>
 </div>
@@ -136,7 +151,7 @@
 <script>
 (async()=>{
   const c=await fetch("/config").then(r=>r.json());
-  document.getElementById("eventDate").textContent=(c.eventDate || "September 3, 2026").toUpperCase();
+
   facebookLink.href=c.facebookUrl;
   linkedinLink.href=c.linkedinUrl;
   googleReviewLink.href=c.googleReviewUrl;
@@ -145,6 +160,7 @@
   entryForm.addEventListener("submit", async e=>{
     e.preventDefault();
     status.textContent="Saving your entry…";
+
     const f=new FormData(entryForm);
     const payload={
       firstName:f.get("firstName"),
@@ -156,12 +172,20 @@
       linkedinFollow:f.get("linkedinFollow")==="on",
       emailConsent:f.get("emailConsent")==="on"
     };
-    const r=await fetch("/api/enter",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+
+    const r=await fetch("/api/enter",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(payload)
+    });
+
     const d=await r.json();
+
     if(!r.ok||!d.ok){
       status.textContent=d.error||"We could not save your entry.";
       return;
     }
+
     status.textContent="";
     entryCountText.textContent=`You have ${d.entriesCount} ${d.entriesCount===1?"entry":"entries"} in today’s drawing.`;
     successOverlay.hidden=false;
