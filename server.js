@@ -92,9 +92,54 @@ function htmlEscape(str) {
     .replaceAll(">", "&gt;").replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+function parseCookies(req) {
+  const raw = req.headers.cookie || "";
+  return Object.fromEntries(
+    raw.split(";").map(v => v.trim()).filter(Boolean).map(v => {
+      const i = v.indexOf("=");
+      return i === -1 ? [v, ""] : [v.slice(0, i), decodeURIComponent(v.slice(i + 1))];
+    })
+  );
+}
+function adminCookieToken() {
+  if (!ADMIN_PASSWORD) return "";
+  return crypto.createHmac("sha256", ADMIN_PASSWORD)
+    .update("allfast-admin-session")
+    .digest("hex");
+}
 function adminAuthorized(req) {
   if (!ADMIN_PASSWORD) return false;
-  return (req.query.key || req.headers["x-admin-password"] || "") === ADMIN_PASSWORD;
+  const supplied = req.query.key || req.headers["x-admin-password"] || "";
+  if (supplied && supplied === ADMIN_PASSWORD) return true;
+  const cookies = parseCookies(req);
+  return cookies.allfast_admin === adminCookieToken();
+}
+function adminLoginPage(message = "") {
+  return `<!doctype html>
+  <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ALLFAST Admin Login</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#f4f6f8;font-family:Arial,sans-serif;color:#171717;display:grid;min-height:100vh;place-items:center;padding:24px}
+    .card{width:min(440px,100%);background:#fff;border-radius:16px;padding:30px;box-shadow:0 12px 35px rgba(0,0,0,.12)}
+    h1{margin:0 0 8px;color:#123f95} p{line-height:1.45}
+    label{font-weight:700;display:block;margin:22px 0 8px}
+    input{width:100%;padding:13px;border:1px solid #bbb;border-radius:8px;font-size:16px}
+    button{width:100%;margin-top:16px;padding:14px;border:0;border-radius:8px;background:#123f95;color:white;font-size:16px;font-weight:800;cursor:pointer}
+    .error{background:#fff1ee;color:#9c2a13;padding:10px 12px;border-radius:8px}
+    .note{font-size:13px;color:#666}
+  </style></head>
+  <body><div class="card">
+    <h1>ALLFAST Admin</h1>
+    <p>Enter the admin password to view event entries.</p>
+    ${message ? `<p class="error">${htmlEscape(message)}</p>` : ""}
+    <form method="post" action="/admin/login">
+      <label for="password">Admin Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+      <button type="submit">SIGN IN</button>
+    </form>
+    <p class="note">If this page reports that the password is not configured, check the Render Environment setting named ADMIN_PASSWORD.</p>
+  </div></body></html>`;
 }
 function basicAuthHeader() {
   return "Basic " + Buffer.from(`${CC_CLIENT_ID}:${CC_CLIENT_SECRET}`).toString("base64");
