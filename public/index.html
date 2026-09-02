@@ -8,111 +8,173 @@
 <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-<header class="site-header">
-  <div class="topline"></div>
-  <div class="nav">
-    <div class="logo"><span class="logo-main">ALLFAST</span><span class="logo-sub">FASTENER &amp; TOOL SUPPLY</span></div>
-    <div class="since">SINCE 2004</div>
+
+<header class="event-header">
+  <div class="event-header-inner">
+    <img class="allfast-logo" src="/allfast-florida-logo.png" alt="ALLFAST Fastener & Tool Supply, Inc.">
+    <div class="event-title" aria-label="Tailgate Thursday">
+      <span class="event-orange">TAILGATE</span>
+      <span class="event-blue">THURSDAY</span>
+    </div>
   </div>
 </header>
 
 <main>
   <section class="hero">
+    <div class="hero-pattern"></div>
     <div class="hero-inner">
-      <p class="kicker" id="eventName">TAILGATE THURSDAY</p>
-      <h1>ENTER TO <span>WIN</span></h1>
-      <p class="intro">Join the ALLFAST email list and earn up to <strong>3 entries</strong> in today's prize drawings.</p>
-      <p class="event-date" id="eventDate">September 3, 2026</p>
+      <h1><span class="hero-blue">ENTER</span> <span class="hero-orange">TO WIN</span></h1>
+      <p>Join the ALLFAST email list and earn up to <strong>3 entries</strong> in today’s prize drawings!</p>
+      <div class="date-pill" id="eventDate">SEPTEMBER 3, 2026</div>
     </div>
   </section>
 
-  <section class="entries-wrap">
-    <div class="entries">
-      <div class="entry"><strong>1</strong><div><b>ENTRY</b><span>Join our email list</span></div></div>
-      <div class="entry"><strong>+1</strong><div><b>BONUS</b><span>Follow on Facebook</span></div></div>
-      <div class="entry"><strong>+1</strong><div><b>BONUS</b><span>Follow on LinkedIn</span></div></div>
+  <section class="entry-strip" aria-label="Ways to enter">
+    <div class="entry-strip-inner">
+      <div class="entry-item">
+        <div class="entry-icon">✉</div>
+        <div><strong>1 ENTRY</strong><span>JOIN OUR EMAIL LIST</span></div>
+      </div>
+      <div class="entry-item">
+        <div class="entry-icon social-icon">f</div>
+        <div><strong>+1 ENTRY</strong><span>FOLLOW ON FACEBOOK</span></div>
+      </div>
+      <div class="entry-item">
+        <div class="entry-icon social-icon">in</div>
+        <div><strong>+1 ENTRY</strong><span>FOLLOW ON LINKEDIN</span></div>
+      </div>
     </div>
   </section>
 
-  <section class="content">
-    <div class="section-heading">
-      <p class="kicker dark">ENTER TODAY'S DRAWING</p>
-      <h2>Tell us a little about you.</h2>
-      <p>Fields marked with an asterisk are required.</p>
-    </div>
+  <section class="signup-shell">
+    <form id="entryForm" class="signup-grid">
+      <div class="form-side">
+        <div class="section-label">ENTER TODAY’S DRAWING</div>
+        <h2>Tell us a little about you.</h2>
+        <p class="helper">Fields marked with an asterisk (*) are required.</p>
 
-    <form id="entryForm" class="form">
-      <div class="two">
-        <label>First Name *<input name="firstName" autocomplete="given-name" required></label>
-        <label>Last Name *<input name="lastName" autocomplete="family-name" required></label>
-      </div>
-      <label>Company<input name="company" autocomplete="organization"></label>
-      <label>Email Address *<input name="email" type="email" autocomplete="email" required></label>
-      <label>Phone <span>(optional)</span><input name="phone" type="tel" autocomplete="tel"></label>
-
-      <div class="social">
-        <p class="kicker dark">BONUS ENTRIES</p>
-        <h3>Stay connected with ALLFAST.</h3>
-        <p class="social-note">Follow us on either platform, then check the corresponding box below.</p>
-
-        <div class="social-row">
-          <a id="facebookLink" class="social-link" target="_blank" rel="noopener"><span class="social-name">Facebook</span><span>OPEN PAGE →</span></a>
-          <label class="check"><input type="checkbox" name="facebookFollow"><span>I follow ALLFAST on Facebook <b>+1</b></span></label>
+        <div class="two-col">
+          <label>First Name *<input name="firstName" autocomplete="given-name" required></label>
+          <label>Last Name *<input name="lastName" autocomplete="family-name" required></label>
         </div>
-        <div class="social-row">
-          <a id="linkedinLink" class="social-link" target="_blank" rel="noopener"><span class="social-name">LinkedIn</span><span>OPEN PAGE →</span></a>
-          <label class="check"><input type="checkbox" name="linkedinFollow"><span>I follow ALLFAST on LinkedIn <b>+1</b></span></label>
-        </div>
+        <label>Company<input name="company" autocomplete="organization"></label>
+        <label>Email Address *<input name="email" type="email" autocomplete="email" required></label>
+        <label>Phone <span>(optional)</span><input name="phone" type="tel" autocomplete="tel"></label>
+
+        <label class="consent">
+          <input type="checkbox" name="emailConsent" checked required>
+          <span><b>By entering, I agree to receive occasional emails from ALLFAST Fastener &amp; Tool Supply, Inc.</b><small>I can unsubscribe at any time.</small></span>
+        </label>
       </div>
 
-      <label class="check consent"><input type="checkbox" name="emailConsent" checked required><span>By entering, I agree to receive occasional emails from ALLFAST Fastener &amp; Tool Supply. I can unsubscribe at any time.</span></label>
-      <button type="submit" class="primary">ENTER THE DRAWING <span>→</span></button>
-      <p class="legal">No purchase necessary. One signup per email address. Social bonus entries are self-reported.</p>
-      <p id="status" class="status" aria-live="polite"></p>
+      <div class="bonus-side">
+        <div class="section-label">BONUS ENTRIES</div>
+        <h2>Stay connected with ALLFAST.</h2>
+        <p class="helper">Follow us on either platform, then check the corresponding box below.</p>
+
+        <div class="social-card">
+          <div class="social-card-main">
+            <div class="platform-mark facebook">f</div>
+            <div class="platform-copy"><strong>FACEBOOK</strong><span>FOLLOW ALLFAST</span></div>
+            <a id="facebookLink" class="open-social" target="_blank" rel="noopener">OPEN FACEBOOK →</a>
+          </div>
+          <label class="bonus-check"><input type="checkbox" name="facebookFollow"><span>I FOLLOW ALLFAST ON FACEBOOK <b>+1 ENTRY</b></span></label>
+        </div>
+
+        <div class="social-card">
+          <div class="social-card-main">
+            <div class="platform-mark linkedin">in</div>
+            <div class="platform-copy"><strong>LINKEDIN</strong><span>FOLLOW ALLFAST</span></div>
+            <a id="linkedinLink" class="open-social" target="_blank" rel="noopener">OPEN LINKEDIN →</a>
+          </div>
+          <label class="bonus-check"><input type="checkbox" name="linkedinFollow"><span>I FOLLOW ALLFAST ON LINKEDIN <b>+1 ENTRY</b></span></label>
+        </div>
+
+        <button type="submit" class="primary">ENTER THE DRAWING <span>→</span></button>
+        <p class="legal">No purchase necessary. One signup per email address.<br>Social bonus entries are self-reported.</p>
+        <p id="status" class="status" aria-live="polite"></p>
+      </div>
     </form>
   </section>
 
   <section class="review">
     <div class="review-inner">
-      <div><p class="kicker">CUSTOMER REVIEWS</p><h2>How did we do?</h2><p>We appreciate your feedback. Google reviews are separate from the prize drawing and do not provide an additional entry.</p></div>
-      <a id="googleReviewLink" class="review-button" target="_blank" rel="noopener">REVIEW US ON GOOGLE →</a>
+      <div class="review-copy">
+        <div class="review-icon">★</div>
+        <div>
+          <div class="review-kicker">HOW DID WE DO?</div>
+          <h2>WE APPRECIATE YOUR FEEDBACK.</h2>
+          <p>Google reviews are separate from the prize drawing and do not provide an additional entry.</p>
+        </div>
+      </div>
+      <a id="googleReviewLink" class="review-button" target="_blank" rel="noopener"><span class="google-g">G</span> REVIEW US ON GOOGLE <b>→</b></a>
     </div>
   </section>
 </main>
 
-<footer>
-  <div class="footer-logo">ALLFAST</div>
-  <div>Fastener &amp; Tool Supply</div>
-  <div class="tagline">BUILT TO SERVE. <b>SINCE 2004.</b></div>
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-item"><b>GAINESVILLE</b><span>352-376-9955</span></div>
+    <div class="footer-divider"></div>
+    <div class="footer-item"><b>JACKSONVILLE</b><span>904-724-3332</span></div>
+    <div class="footer-divider"></div>
+    <div class="footer-site">ALLFASTSUPPLY.COM</div>
+  </div>
 </footer>
 
 <div id="successOverlay" class="overlay" hidden>
   <div class="success">
     <div class="success-mark">✓</div>
-    <p class="kicker dark">YOU'RE IN</p>
+    <div class="section-label">YOU’RE IN</div>
     <h2>Thanks for entering!</h2>
-    <p id="entryCountText">You have 1 entry in today's drawing.</p>
-    <a id="successReviewLink" class="review-button dark-button" target="_blank" rel="noopener">REVIEW ALLFAST ON GOOGLE →</a>
-    <button id="closeSuccess" type="button" class="text-button">DONE</button>
+    <p id="entryCountText">You have 1 entry in today’s drawing.</p>
+    <a id="successReviewLink" class="review-button success-review" target="_blank" rel="noopener">REVIEW ALLFAST ON GOOGLE →</a>
+    <button id="closeSuccess" type="button" class="done-button">DONE</button>
   </div>
 </div>
 
 <script>
 (async()=>{
- const c=await fetch("/config").then(r=>r.json());
- eventName.textContent=c.eventName.toUpperCase(); eventDate.textContent=c.eventDate;
- facebookLink.href=c.facebookUrl; linkedinLink.href=c.linkedinUrl; googleReviewLink.href=c.googleReviewUrl; successReviewLink.href=c.googleReviewUrl;
- entryForm.addEventListener("submit",async e=>{
-   e.preventDefault(); status.textContent="Saving your entry…";
-   const f=new FormData(entryForm);
-   const payload={firstName:f.get("firstName"),lastName:f.get("lastName"),company:f.get("company"),email:f.get("email"),phone:f.get("phone"),
-     facebookFollow:f.get("facebookFollow")==="on",linkedinFollow:f.get("linkedinFollow")==="on",emailConsent:f.get("emailConsent")==="on"};
-   const r=await fetch("/api/enter",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-   const d=await r.json(); if(!r.ok||!d.ok){status.textContent=d.error||"We could not save your entry.";return;}
-   status.textContent=""; entryCountText.textContent=`You have ${d.entriesCount} ${d.entriesCount===1?"entry":"entries"} in today's drawing.`;
-   successOverlay.hidden=false; closeSuccess.focus();
- });
- closeSuccess.addEventListener("click",()=>{successOverlay.hidden=true;entryForm.reset();entryForm.elements.emailConsent.checked=true;window.scrollTo({top:0,behavior:"smooth"});});
+  const c=await fetch("/config").then(r=>r.json());
+  document.getElementById("eventDate").textContent=(c.eventDate || "September 3, 2026").toUpperCase();
+  facebookLink.href=c.facebookUrl;
+  linkedinLink.href=c.linkedinUrl;
+  googleReviewLink.href=c.googleReviewUrl;
+  successReviewLink.href=c.googleReviewUrl;
+
+  entryForm.addEventListener("submit", async e=>{
+    e.preventDefault();
+    status.textContent="Saving your entry…";
+    const f=new FormData(entryForm);
+    const payload={
+      firstName:f.get("firstName"),
+      lastName:f.get("lastName"),
+      company:f.get("company"),
+      email:f.get("email"),
+      phone:f.get("phone"),
+      facebookFollow:f.get("facebookFollow")==="on",
+      linkedinFollow:f.get("linkedinFollow")==="on",
+      emailConsent:f.get("emailConsent")==="on"
+    };
+    const r=await fetch("/api/enter",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    const d=await r.json();
+    if(!r.ok||!d.ok){
+      status.textContent=d.error||"We could not save your entry.";
+      return;
+    }
+    status.textContent="";
+    entryCountText.textContent=`You have ${d.entriesCount} ${d.entriesCount===1?"entry":"entries"} in today’s drawing.`;
+    successOverlay.hidden=false;
+    closeSuccess.focus();
+  });
+
+  closeSuccess.addEventListener("click",()=>{
+    successOverlay.hidden=true;
+    entryForm.reset();
+    entryForm.elements.emailConsent.checked=true;
+    window.scrollTo({top:0,behavior:"smooth"});
+  });
 })();
 </script>
-</body></html>
+</body>
+</html>
