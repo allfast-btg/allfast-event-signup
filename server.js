@@ -1,5 +1,6 @@
 const express = require("express");
 const path = require("path");
+const crypto = require("crypto");
 const { Pool } = require("pg");
 
 const app = express();
@@ -9,13 +10,21 @@ const EVENT_SLUG = process.env.EVENT_SLUG || "tailgate-thursday-2026-09-03";
 const EVENT_NAME = process.env.EVENT_NAME || "Tailgate Thursday";
 const EVENT_DATE = process.env.EVENT_DATE || "September 3, 2026";
 const FACEBOOK_URL = process.env.FACEBOOK_URL || "https://www.facebook.com/ALLFASTSupply/";
-const INSTAGRAM_URL = process.env.INSTAGRAM_URL || "https://www.instagram.com/allfastsupply";
+const LINKEDIN_URL = process.env.LINKEDIN_URL || "https://www.linkedin.com/company/allfast-supply";
 const GOOGLE_REVIEW_URL = process.env.GOOGLE_REVIEW_URL || "https://g.page/r/CZ8MDzS2WY6AEAE/review";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
-const PUBLIC_URL = process.env.PUBLIC_URL || "";
+const PUBLIC_URL = process.env.PUBLIC_URL || "https://allfast-event-signup.onrender.com";
+
+const CC_CLIENT_ID = process.env.CONSTANT_CONTACT_CLIENT_ID || "";
+const CC_CLIENT_SECRET = process.env.CONSTANT_CONTACT_CLIENT_SECRET || "";
+const CC_REDIRECT_URI = process.env.CONSTANT_CONTACT_REDIRECT_URI || `${PUBLIC_URL.replace(/\/$/, "")}/auth/constant-contact/callback`;
+const CC_LIST_NAME = process.env.CONSTANT_CONTACT_LIST_NAME || "ALLFAST Event Signups";
+const CC_AUTH_URL = "https://authz.constantcontact.com/oauth2/default/v1/authorize";
+const CC_TOKEN_URL = "https://authz.constantcontact.com/oauth2/default/v1/token";
+const CC_API_BASE = "https://api.cc.email/v3";
 
 if (!process.env.DATABASE_URL) {
-  console.error("DATABASE_URL is required. Use a PostgreSQL database (Render Postgres works well).");
+  console.error("DATABASE_URL is required.");
   process.exit(1);
 }
 
@@ -23,6 +32,10 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL.includes("localhost") ? false : { rejectUnauthorized: false }
 });
+
+app.use(express.urlencoded({ extended: false }));
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
 
 async function initDb() {
   await pool.query(`
@@ -42,186 +55,212 @@ async function initDb() {
       UNIQUE(event_slug, email)
     );
   `);
+
+  await pool.query(`
+    ALTER TABLE entries
+      ADD COLUMN IF NOT EXISTS linkedin_follow BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS constant_contact_status TEXT,
+      ADD COLUMN IF NOT EXISTS constant_contact_synced_at TIMESTAMPTZ;
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS integrations (
+      integration_name TEXT PRIMARY KEY,
+      access_token TEXT,
+      refresh_token TEXT,
+      token_expires_at TIMESTAMPTZ,
+      oauth_state TEXT,
+      list_id TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
+    INSERT INTO integrations (integration_name)
+    VALUES ('constant_contact')
+    ON CONFLICT (integration_name) DO NOTHING;
+  `);
 }
 initDb().catch(err => {
   console.error("Database initialization failed:", err);
   process.exit(1);
 });
 
-app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
-
 function htmlEscape(str) {
   return String(str ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;").replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
-
-app.get("/health", (req, res) => res.json({ ok: true }));
-
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-app.get("/config", (req, res) => {
-  res.json({
-    eventSlug: EVENT_SLUG,
-    eventName: EVENT_NAME,
-    eventDate: EVENT_DATE,
-    facebookUrl: FACEBOOK_URL,
-    instagramUrl: INSTAGRAM_URL,
-    googleReviewUrl: GOOGLE_REVIEW_URL,
-    publicUrl: PUBLIC_URL
-  });
-});
-
-app.post("/api/enter", async (req, res) => {
-  try {
-    const firstName = String(req.body.firstName || "").trim();
-    const lastName = String(req.body.lastName || "").trim();
-    const company = String(req.body.company || "").trim();
-    const email = String(req.body.email || "").trim().toLowerCase();
-    const phone = String(req.body.phone || "").trim();
-    const facebookFollow = req.body.facebookFollow === true || req.body.facebookFollow === "true";
-    const instagramFollow = req.body.instagramFollow === true || req.body.instagramFollow === "true";
-    const emailConsent = req.body.emailConsent !== false && req.body.emailConsent !== "false";
-
-    if (!firstName || !lastName || !email) {
-      return res.status(400).json({ ok: false, error: "First name, last name, and email are required." });
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return res.status(400).json({ ok: false, error: "Please enter a valid email address." });
-    }
-
-    const entriesCount = 1 + (facebookFollow ? 1 : 0) + (instagramFollow ? 1 : 0);
-
-    const q = `
-      INSERT INTO entries (
-        event_slug, first_name, last_name, company, email, phone,
-        email_consent, facebook_follow, instagram_follow, entries_count
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-      ON CONFLICT (event_slug, email)
-      DO UPDATE SET
-        first_name = EXCLUDED.first_name,
-        last_name = EXCLUDED.last_name,
-        company = EXCLUDED.company,
-        phone = EXCLUDED.phone,
-        email_consent = EXCLUDED.email_consent,
-        facebook_follow = EXCLUDED.facebook_follow,
-        instagram_follow = EXCLUDED.instagram_follow,
-        entries_count = EXCLUDED.entries_count
-      RETURNING id, entries_count, created_at
-    `;
-    const result = await pool.query(q, [
-      EVENT_SLUG, firstName, lastName, company, email, phone,
-      emailConsent, facebookFollow, instagramFollow, entriesCount
-    ]);
-
-    return res.json({
-      ok: true,
-      entriesCount: result.rows[0].entries_count,
-      googleReviewUrl: GOOGLE_REVIEW_URL
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ ok: false, error: "We could not save your entry. Please try again." });
-  }
-});
-
 function adminAuthorized(req) {
   if (!ADMIN_PASSWORD) return false;
-  const supplied = req.query.key || req.headers["x-admin-password"] || "";
-  return supplied === ADMIN_PASSWORD;
+  return (req.query.key || req.headers["x-admin-password"] || "") === ADMIN_PASSWORD;
+}
+function basicAuthHeader() {
+  return "Basic " + Buffer.from(`${CC_CLIENT_ID}:${CC_CLIENT_SECRET}`).toString("base64");
+}
+async function getIntegration() {
+  const r = await pool.query(`SELECT * FROM integrations WHERE integration_name='constant_contact' LIMIT 1`);
+  return r.rows[0] || null;
+}
+async function saveTokens(data) {
+  const expiresAt = new Date(Date.now() + Math.max(60, Number(data.expires_in || 7200)-120)*1000);
+  await pool.query(`
+    UPDATE integrations SET access_token=$1, refresh_token=COALESCE($2,refresh_token),
+    token_expires_at=$3, updated_at=NOW() WHERE integration_name='constant_contact'`,
+    [data.access_token, data.refresh_token || null, expiresAt]);
+}
+async function exchangeCode(code) {
+  const body = new URLSearchParams({code, redirect_uri:CC_REDIRECT_URI, grant_type:"authorization_code"});
+  const r = await fetch(CC_TOKEN_URL,{method:"POST",headers:{
+    "Accept":"application/json","Content-Type":"application/x-www-form-urlencoded","Authorization":basicAuthHeader()
+  },body});
+  const data = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(`CC token exchange ${r.status}: ${JSON.stringify(data)}`);
+  await saveTokens(data);
+  return data.access_token;
+}
+async function refreshToken(refresh_token) {
+  const body = new URLSearchParams({refresh_token,grant_type:"refresh_token"});
+  const r = await fetch(CC_TOKEN_URL,{method:"POST",headers:{
+    "Accept":"application/json","Content-Type":"application/x-www-form-urlencoded","Authorization":basicAuthHeader()
+  },body});
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(`CC refresh ${r.status}: ${JSON.stringify(data)}`);
+  await saveTokens(data);
+  return data.access_token;
+}
+async function validToken() {
+  const i=await getIntegration();
+  if(!i?.access_token) throw new Error("Constant Contact is not connected.");
+  if(i.token_expires_at && new Date(i.token_expires_at).getTime()>Date.now()+60000) return i.access_token;
+  if(!i.refresh_token) throw new Error("Constant Contact refresh token missing.");
+  return refreshToken(i.refresh_token);
+}
+async function ccApi(endpoint, options={}) {
+  let token=await validToken();
+  const call=(t)=>fetch(`${CC_API_BASE}${endpoint}`,{...options,headers:{
+    "Accept":"application/json",...(options.body?{"Content-Type":"application/json"}:{}),
+    ...(options.headers||{}),"Authorization":`Bearer ${t}`
+  }});
+  let r=await call(token);
+  if(r.status===401){
+    const i=await getIntegration();
+    if(i?.refresh_token){ token=await refreshToken(i.refresh_token); r=await call(token); }
+  }
+  return r;
+}
+async function ensureList() {
+  const i=await getIntegration();
+  if(i?.list_id) return i.list_id;
+  let r=await ccApi("/contact_lists?limit=500");
+  let data=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(`CC list read ${r.status}: ${JSON.stringify(data)}`);
+  let list=(data.lists||[]).find(x=>(x.name||"").trim().toLowerCase()===CC_LIST_NAME.toLowerCase());
+  if(!list){
+    r=await ccApi("/contact_lists",{method:"POST",body:JSON.stringify({
+      name:CC_LIST_NAME,favorite:true,description:"Contacts who opted in through ALLFAST event signup forms."
+    })});
+    list=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(`CC list create ${r.status}: ${JSON.stringify(list)}`);
+  }
+  await pool.query(`UPDATE integrations SET list_id=$1,updated_at=NOW() WHERE integration_name='constant_contact'`,[list.list_id]);
+  return list.list_id;
+}
+async function syncCC(c) {
+  if(!c.emailConsent) return;
+  const listId=await ensureList();
+  const payload={email_address:c.email,first_name:c.firstName,last_name:c.lastName,list_memberships:[listId]};
+  if(c.company) payload.company_name=c.company;
+  if(c.phone) payload.phone_number=c.phone;
+  const r=await ccApi("/contacts/sign_up_form",{method:"POST",body:JSON.stringify(payload)});
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(`CC contact sync ${r.status}: ${JSON.stringify(data)}`);
 }
 
-app.get("/admin", async (req, res) => {
-  if (!adminAuthorized(req)) return res.status(401).send("Unauthorized");
-  const result = await pool.query(
-    `SELECT * FROM entries WHERE event_slug=$1 ORDER BY created_at DESC`,
-    [EVENT_SLUG]
-  );
+app.get("/health",(req,res)=>res.json({ok:true}));
+app.get("/",(req,res)=>res.sendFile(path.join(__dirname,"public","index.html")));
+app.get("/config",(req,res)=>res.json({
+  eventName:EVENT_NAME,eventDate:EVENT_DATE,facebookUrl:FACEBOOK_URL,linkedinUrl:LINKEDIN_URL,
+  googleReviewUrl:GOOGLE_REVIEW_URL,publicUrl:PUBLIC_URL
+}));
 
-  const rows = result.rows.map(r => `
-    <tr>
-      <td>${r.id}</td>
-      <td>${htmlEscape(r.first_name)} ${htmlEscape(r.last_name)}</td>
-      <td>${htmlEscape(r.company)}</td>
-      <td>${htmlEscape(r.email)}</td>
-      <td>${htmlEscape(r.phone)}</td>
-      <td>${r.facebook_follow ? "Yes" : ""}</td>
-      <td>${r.instagram_follow ? "Yes" : ""}</td>
-      <td>${r.entries_count}</td>
-      <td>${new Date(r.created_at).toLocaleString()}</td>
-    </tr>
-  `).join("");
-
-  res.send(`<!doctype html>
-  <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>ALLFAST Entries</title>
-  <style>
-    body{font-family:Arial,sans-serif;margin:24px;color:#161616}
-    table{border-collapse:collapse;width:100%;font-size:14px}
-    th,td{border:1px solid #ddd;padding:8px;text-align:left}
-    th{background:#f4f4f4}
-    .top{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
-    a{color:#111}
-  </style></head>
-  <body>
-    <div class="top">
-      <h1>${htmlEscape(EVENT_NAME)} Entries</h1>
-      <a href="/admin/export.csv?key=${encodeURIComponent(ADMIN_PASSWORD)}">Download CSV</a>
-    </div>
-    <p>${result.rowCount} signup(s)</p>
-    <table>
-      <thead><tr><th>ID</th><th>Name</th><th>Company</th><th>Email</th><th>Phone</th><th>Facebook</th><th>Instagram</th><th>Entries</th><th>Submitted</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </body></html>`);
+app.get("/auth/constant-contact/start", async(req,res)=>{
+  if(!adminAuthorized(req)) return res.status(401).send("Unauthorized");
+  const state=crypto.randomBytes(24).toString("hex");
+  await pool.query(`UPDATE integrations SET oauth_state=$1,updated_at=NOW() WHERE integration_name='constant_contact'`,[state]);
+  const p=new URLSearchParams({client_id:CC_CLIENT_ID,redirect_uri:CC_REDIRECT_URI,response_type:"code",
+    scope:"contact_data offline_access",state});
+  res.redirect(`${CC_AUTH_URL}?${p.toString()}`);
+});
+app.get("/auth/constant-contact/callback",async(req,res)=>{
+  try{
+    const i=await getIntegration();
+    if(!req.query.code || !req.query.state || req.query.state!==i?.oauth_state) return res.status(400).send("Invalid Constant Contact authorization response.");
+    await exchangeCode(String(req.query.code));
+    await pool.query(`UPDATE integrations SET oauth_state=NULL,updated_at=NOW() WHERE integration_name='constant_contact'`);
+    await ensureList();
+    res.send(`<!doctype html><meta name="viewport" content="width=device-width"><style>body{font-family:Arial;max-width:620px;margin:60px auto;padding:20px;text-align:center}div{border:1px solid #ddd;border-radius:16px;padding:30px}</style><div><h1>✓ Constant Contact Connected</h1><p>New consenting ALLFAST event signups will sync automatically to <strong>${htmlEscape(CC_LIST_NAME)}</strong>.</p></div>`);
+  }catch(e){console.error(e);res.status(500).send("Constant Contact connection failed. Check Render logs.");}
+});
+app.get("/admin/constant-contact",async(req,res)=>{
+  if(!adminAuthorized(req)) return res.status(401).send("Unauthorized");
+  const i=await getIntegration(), connected=Boolean(i?.access_token&&i?.refresh_token);
+  res.send(`<!doctype html><meta name="viewport" content="width=device-width"><style>body{font-family:Arial;max-width:650px;margin:50px auto;padding:20px}a{display:inline-block;background:#111;color:white;padding:12px 18px;border-radius:8px;text-decoration:none}</style><h1>Constant Contact</h1><p>Status: <strong>${connected?"Connected":"Not connected"}</strong></p><p>List: ${htmlEscape(CC_LIST_NAME)}</p><a href="/auth/constant-contact/start?key=${encodeURIComponent(ADMIN_PASSWORD)}">${connected?"Reconnect":"Connect"} Constant Contact</a>`);
 });
 
-app.get("/admin/export.csv", async (req, res) => {
-  if (!adminAuthorized(req)) return res.status(401).send("Unauthorized");
-  const result = await pool.query(
-    `SELECT first_name,last_name,company,email,phone,email_consent,facebook_follow,instagram_follow,entries_count,created_at
-     FROM entries WHERE event_slug=$1 ORDER BY created_at ASC`,
-    [EVENT_SLUG]
-  );
-
-  const headers = ["First Name","Last Name","Company","Email","Phone","Email Consent","Facebook Follow","Instagram Follow","Entries","Created At"];
-  const esc = v => `"${String(v ?? "").replaceAll('"','""')}"`;
-  const csv = [headers.map(esc).join(",")].concat(
-    result.rows.map(r => [
-      r.first_name,r.last_name,r.company,r.email,r.phone,
-      r.email_consent,r.facebook_follow,r.instagram_follow,r.entries_count,r.created_at.toISOString()
-    ].map(esc).join(","))
-  ).join("\n");
-
-  res.setHeader("Content-Type", "text/csv");
-  res.setHeader("Content-Disposition", `attachment; filename="${EVENT_SLUG}-entries.csv"`);
-  res.send(csv);
+app.post("/api/enter",async(req,res)=>{
+  try{
+    const firstName=String(req.body.firstName||"").trim(), lastName=String(req.body.lastName||"").trim();
+    const company=String(req.body.company||"").trim(), email=String(req.body.email||"").trim().toLowerCase();
+    const phone=String(req.body.phone||"").trim();
+    const facebookFollow=req.body.facebookFollow===true||req.body.facebookFollow==="true";
+    const linkedinFollow=req.body.linkedinFollow===true||req.body.linkedinFollow==="true";
+    const emailConsent=req.body.emailConsent!==false&&req.body.emailConsent!=="false";
+    if(!firstName||!lastName||!email) return res.status(400).json({ok:false,error:"First name, last name, and email are required."});
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ok:false,error:"Please enter a valid email address."});
+    if(!emailConsent) return res.status(400).json({ok:false,error:"Email permission is required to enter through this signup form."});
+    const entriesCount=1+(facebookFollow?1:0)+(linkedinFollow?1:0);
+    const q=`INSERT INTO entries(event_slug,first_name,last_name,company,email,phone,email_consent,facebook_follow,linkedin_follow,instagram_follow,entries_count,constant_contact_status)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,FALSE,$10,'pending')
+      ON CONFLICT(event_slug,email) DO UPDATE SET first_name=EXCLUDED.first_name,last_name=EXCLUDED.last_name,
+      company=EXCLUDED.company,phone=EXCLUDED.phone,email_consent=EXCLUDED.email_consent,
+      facebook_follow=EXCLUDED.facebook_follow,linkedin_follow=EXCLUDED.linkedin_follow,instagram_follow=FALSE,
+      entries_count=EXCLUDED.entries_count,constant_contact_status='pending'
+      RETURNING id,entries_count`;
+    const r=await pool.query(q,[EVENT_SLUG,firstName,lastName,company,email,phone,emailConsent,facebookFollow,linkedinFollow,entriesCount]);
+    let ccStatus="not_connected";
+    try{
+      const i=await getIntegration();
+      if(i?.access_token&&i?.refresh_token){
+        await syncCC({firstName,lastName,company,email,phone,emailConsent});
+        ccStatus="synced";
+        await pool.query(`UPDATE entries SET constant_contact_status='synced',constant_contact_synced_at=NOW() WHERE id=$1`,[r.rows[0].id]);
+      }else await pool.query(`UPDATE entries SET constant_contact_status='not_connected' WHERE id=$1`,[r.rows[0].id]);
+    }catch(e){ccStatus="error";console.error("Constant Contact sync:",e);await pool.query(`UPDATE entries SET constant_contact_status='error' WHERE id=$1`,[r.rows[0].id]);}
+    res.json({ok:true,entriesCount:r.rows[0].entries_count,emailListSync:ccStatus});
+  }catch(e){console.error(e);res.status(500).json({ok:false,error:"We could not save your entry. Please try again."});}
 });
 
-app.get("/admin/draw", async (req, res) => {
-  if (!adminAuthorized(req)) return res.status(401).send("Unauthorized");
-  const result = await pool.query(
-    `SELECT id,first_name,last_name,company,email,entries_count
-     FROM entries WHERE event_slug=$1`,
-    [EVENT_SLUG]
-  );
-  const weighted = [];
-  for (const r of result.rows) {
-    for (let i=0; i<r.entries_count; i++) weighted.push(r);
-  }
-  if (!weighted.length) return res.json({ ok:false, error:"No entries yet." });
-  const winner = weighted[Math.floor(Math.random() * weighted.length)];
-  res.json({ ok:true, winner });
+app.get("/admin",async(req,res)=>{
+  if(!adminAuthorized(req)) return res.status(401).send("Unauthorized");
+  const r=await pool.query(`SELECT * FROM entries WHERE event_slug=$1 ORDER BY created_at DESC`,[EVENT_SLUG]);
+  const rows=r.rows.map(x=>`<tr><td>${x.id}</td><td>${htmlEscape(x.first_name)} ${htmlEscape(x.last_name)}</td><td>${htmlEscape(x.company)}</td><td>${htmlEscape(x.email)}</td><td>${x.facebook_follow?"Yes":""}</td><td>${x.linkedin_follow?"Yes":""}</td><td>${x.entries_count}</td><td>${htmlEscape(x.constant_contact_status||"")}</td></tr>`).join("");
+  res.send(`<!doctype html><meta name="viewport" content="width=device-width"><style>body{font-family:Arial;margin:24px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#eee}a{margin-right:16px}</style><h1>${htmlEscape(EVENT_NAME)} Entries</h1><p><a href="/admin/export.csv?key=${encodeURIComponent(ADMIN_PASSWORD)}">Download CSV</a><a href="/admin/constant-contact?key=${encodeURIComponent(ADMIN_PASSWORD)}">Constant Contact</a><a href="/admin/draw?key=${encodeURIComponent(ADMIN_PASSWORD)}">Draw Winner</a></p><table><tr><th>ID</th><th>Name</th><th>Company</th><th>Email</th><th>Facebook</th><th>LinkedIn</th><th>Entries</th><th>Constant Contact</th></tr>${rows}</table>`);
+});
+app.get("/admin/export.csv",async(req,res)=>{
+  if(!adminAuthorized(req)) return res.status(401).send("Unauthorized");
+  const r=await pool.query(`SELECT first_name,last_name,company,email,phone,email_consent,facebook_follow,linkedin_follow,entries_count,constant_contact_status,created_at FROM entries WHERE event_slug=$1 ORDER BY created_at`,[EVENT_SLUG]);
+  const esc=v=>`"${String(v??"").replaceAll('"','""')}"`;
+  const rows=[["First Name","Last Name","Company","Email","Phone","Email Consent","Facebook Follow","LinkedIn Follow","Entries","Constant Contact","Created At"],...r.rows.map(x=>[x.first_name,x.last_name,x.company,x.email,x.phone,x.email_consent,x.facebook_follow,x.linkedin_follow,x.entries_count,x.constant_contact_status,new Date(x.created_at).toISOString()])];
+  res.type("text/csv").set("Content-Disposition",`attachment; filename="${EVENT_SLUG}-entries.csv"`).send(rows.map(row=>row.map(esc).join(",")).join("\n"));
+});
+app.get("/admin/draw",async(req,res)=>{
+  if(!adminAuthorized(req)) return res.status(401).send("Unauthorized");
+  const r=await pool.query(`SELECT id,first_name,last_name,company,email,entries_count FROM entries WHERE event_slug=$1`,[EVENT_SLUG]);
+  const weighted=[]; for(const x of r.rows) for(let i=0;i<x.entries_count;i++) weighted.push(x);
+  if(!weighted.length) return res.json({ok:false,error:"No entries yet."});
+  res.json({ok:true,winner:weighted[Math.floor(Math.random()*weighted.length)]});
 });
 
-app.listen(PORT, () => {
-  console.log(`ALLFAST event signup running on port ${PORT}`);
-});
+app.listen(PORT,()=>console.log(`ALLFAST event signup running on port ${PORT}`));
