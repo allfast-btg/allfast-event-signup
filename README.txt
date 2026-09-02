@@ -1,17 +1,16 @@
-ALLFAST Admin Login Fix V2
+ALLFAST Duplicate Entry Fix
 
 Replace ONLY server.js in GitHub with the server.js in this ZIP.
-Do not replace anything in /public.
+Leave the public folder exactly as it is.
 
-This corrected version:
-- adds /admin/status
-- adds a real /admin login form
-- stores the successful admin login in a secure cookie
-- removes the need to put the admin password in admin links
-- enforces Phone as required on the server, matching the V5 form
+This fixes duplicate entries correctly:
+- The first signup is saved normally.
+- A second signup using the same email for this event is rejected.
+- The original name, phone, social selections, entry count, and Constant Contact status are NOT changed.
+- The duplicate receives a clear message instead of "You're in!":
+  "You're already entered! We already have an entry for this email address for today's drawing. Only one signup per email address is permitted."
 
-After Render says Live:
-1. Open https://allfast-event-signup.onrender.com/admin/status
-2. Confirm adminPasswordConfigured is true
-3. Open https://allfast-event-signup.onrender.com/admin
-4. Enter the ADMIN_PASSWORD value from Render
+After Render redeploys:
+1. Submit an email address that is already in Admin.
+2. Confirm the duplicate message appears.
+3. Refresh Admin and confirm the original record and entry count are unchanged.

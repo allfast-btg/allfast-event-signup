@@ -268,12 +268,18 @@ app.post("/api/enter",async(req,res)=>{
     const entriesCount=1+(facebookFollow?1:0)+(linkedinFollow?1:0);
     const q=`INSERT INTO entries(event_slug,first_name,last_name,company,email,phone,email_consent,facebook_follow,linkedin_follow,instagram_follow,entries_count,constant_contact_status)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,FALSE,$10,'pending')
-      ON CONFLICT(event_slug,email) DO UPDATE SET first_name=EXCLUDED.first_name,last_name=EXCLUDED.last_name,
-      company=EXCLUDED.company,phone=EXCLUDED.phone,email_consent=EXCLUDED.email_consent,
-      facebook_follow=EXCLUDED.facebook_follow,linkedin_follow=EXCLUDED.linkedin_follow,instagram_follow=FALSE,
-      entries_count=EXCLUDED.entries_count,constant_contact_status='pending'
+      ON CONFLICT(event_slug,email) DO NOTHING
       RETURNING id,entries_count`;
     const r=await pool.query(q,[EVENT_SLUG,firstName,lastName,company,email,phone,emailConsent,facebookFollow,linkedinFollow,entriesCount]);
+
+    if(r.rowCount===0){
+      return res.status(409).json({
+        ok:false,
+        duplicate:true,
+        error:"You're already entered! We already have an entry for this email address for today's drawing. Only one signup per email address is permitted."
+      });
+    }
+
     let ccStatus="not_connected";
     try{
       const i=await getIntegration();
