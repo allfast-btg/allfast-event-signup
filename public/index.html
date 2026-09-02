@@ -1,1 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ALLFAST — Enter to Win</title>
+  <meta name="theme-color" content="#111111">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="brand">ALLFAST <span>SUPPLY</span></div>
+      <div class="eyebrow" id="eventName">TAILGATE THURSDAY</div>
+      <h1>ENTER TO WIN</h1>
+      <p class="lede">Join the ALLFAST email list and earn bonus entries by following us on social media.</p>
+      <div class="date" id="eventDate">September 3, 2026</div>
+    </section>
 
+    <section class="card" id="entryCard">
+      <div class="entry-key">
+        <div><strong>1 ENTRY</strong><span>Join our email list</span></div>
+        <div><strong>+1</strong><span>Follow Facebook</span></div>
+        <div><strong>+1</strong><span>Follow Instagram</span></div>
+      </div>
+
+      <form id="entryForm">
+        <div class="grid2">
+          <label>First Name<input name="firstName" autocomplete="given-name" required></label>
+          <label>Last Name<input name="lastName" autocomplete="family-name" required></label>
+        </div>
+        <label>Company<input name="company" autocomplete="organization"></label>
+        <label>Email<input name="email" type="email" autocomplete="email" required></label>
+        <label>Phone <span class="optional">(optional)</span><input name="phone" type="tel" autocomplete="tel"></label>
+
+        <div class="bonus">
+          <h2>Bonus Entries</h2>
+          <p>Open each page, follow ALLFAST, then check the box.</p>
+
+          <div class="bonus-row">
+            <a id="facebookLink" class="social-btn" target="_blank" rel="noopener">Open Facebook</a>
+            <label class="check"><input type="checkbox" name="facebookFollow"> I follow ALLFAST on Facebook (+1)</label>
+          </div>
+
+          <div class="bonus-row">
+            <a id="instagramLink" class="social-btn" target="_blank" rel="noopener">Open Instagram</a>
+            <label class="check"><input type="checkbox" name="instagramFollow"> I follow ALLFAST on Instagram (+1)</label>
+          </div>
+        </div>
+
+        <label class="check consent">
+          <input type="checkbox" name="emailConsent" checked required>
+          I agree to receive occasional emails from ALLFAST Supply. I can unsubscribe at any time.
+        </label>
+
+        <button class="submit" type="submit">ENTER THE DRAWING</button>
+        <p class="fineprint">No purchase necessary. One signup per email address. Social bonus entries are self-reported.</p>
+        <p id="status" class="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="card review-card">
+      <div>
+        <div class="eyebrow">HOW DID WE DO?</div>
+        <h2>Review ALLFAST on Google</h2>
+        <p>We appreciate your feedback. Google reviews are separate from the prize drawing and do not provide an additional entry.</p>
+      </div>
+      <a id="googleReviewLink" class="review-btn" target="_blank" rel="noopener">LEAVE A GOOGLE REVIEW</a>
+    </section>
+
+    <footer>Built to Serve. Since 2004.</footer>
+  </main>
+
+  <div class="success-overlay" id="successOverlay" hidden>
+    <div class="success-box">
+      <div class="checkmark">✓</div>
+      <h2>You're entered!</h2>
+      <p id="entryCountText">You have 1 entry in today's drawing.</p>
+      <a id="successReviewLink" class="review-btn" target="_blank" rel="noopener">REVIEW ALLFAST ON GOOGLE</a>
+      <button id="closeSuccess" class="secondary" type="button">Done</button>
+    </div>
+  </div>
+
+<script>
+(async function () {
+  const config = await fetch("/config").then(r => r.json());
+  document.getElementById("eventName").textContent = config.eventName.toUpperCase();
+  document.getElementById("eventDate").textContent = config.eventDate;
+  document.getElementById("facebookLink").href = config.facebookUrl;
+  document.getElementById("instagramLink").href = config.instagramUrl;
+  document.getElementById("googleReviewLink").href = config.googleReviewUrl;
+  document.getElementById("successReviewLink").href = config.googleReviewUrl;
+
+  const form = document.getElementById("entryForm");
+  const status = document.getElementById("status");
+  const overlay = document.getElementById("successOverlay");
+  const closeSuccess = document.getElementById("closeSuccess");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    status.textContent = "Saving your entry…";
+    const fd = new FormData(form);
+    const payload = {
+      firstName: fd.get("firstName"),
+      lastName: fd.get("lastName"),
+      company: fd.get("company"),
+      email: fd.get("email"),
+      phone: fd.get("phone"),
+      facebookFollow: fd.get("facebookFollow") === "on",
+      instagramFollow: fd.get("instagramFollow") === "on",
+      emailConsent: fd.get("emailConsent") === "on"
+    };
+
+    const resp = await fetch("/api/enter", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) {
+      status.textContent = data.error || "We could not save your entry. Please try again.";
+      return;
+    }
+
+    status.textContent = "";
+    document.getElementById("entryCountText").textContent =
+      `You have ${data.entriesCount} ${data.entriesCount === 1 ? "entry" : "entries"} in today's drawing.`;
+    overlay.hidden = false;
+    closeSuccess.focus();
+  });
+
+  closeSuccess.addEventListener("click", () => {
+    overlay.hidden = true;
+    form.reset();
+    form.elements.emailConsent.checked = true;
+    window.scrollTo({top:0, behavior:"smooth"});
+  });
+})();
+</script>
+</body>
+</html>
