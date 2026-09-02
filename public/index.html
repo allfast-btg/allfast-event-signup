@@ -148,6 +148,17 @@
   </div>
 </div>
 
+
+<div id="duplicateOverlay" class="overlay" hidden>
+  <div class="success">
+    <div class="success-mark">✓</div>
+    <div class="section-label">YOU’RE ALREADY ENTERED</div>
+    <h2>We already have your entry.</h2>
+    <p>We already have an entry for this email address for today’s drawing. Only one signup per email address is permitted.</p>
+    <button id="closeDuplicate" type="button" class="done-button">DONE</button>
+  </div>
+</div>
+
 <script>
 (async()=>{
   const c=await fetch("/config").then(r=>r.json());
@@ -182,6 +193,12 @@
     const d=await r.json();
 
     if(!r.ok||!d.ok){
+      status.textContent="";
+      if(d.duplicate || r.status===409){
+        duplicateOverlay.hidden=false;
+        closeDuplicate.focus();
+        return;
+      }
       status.textContent=d.error||"We could not save your entry.";
       return;
     }
@@ -197,6 +214,11 @@
     entryForm.reset();
     entryForm.elements.emailConsent.checked=true;
     window.scrollTo({top:0,behavior:"smooth"});
+  });
+
+  closeDuplicate.addEventListener("click",()=>{
+    duplicateOverlay.hidden=true;
+    entryForm.elements.email.focus();
   });
 })();
 </script>
