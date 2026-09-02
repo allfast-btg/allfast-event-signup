@@ -371,3 +371,16 @@ a,button,input{font:inherit}
   .site-footer{min-height:105px}
   .footer-logo-link img{width:min(220px,60vw)}
 }
+
+
+/* V5 refinements */
+.bonus-side h2 em{
+  font-style:italic;
+  font-weight:inherit;
+}
+@media(max-width:820px){
+  .enter-hero h1{
+    font-weight:1000;
+    white-space:nowrap;
+  }
+}
