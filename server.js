@@ -268,18 +268,12 @@ app.post("/api/enter",async(req,res)=>{
     const entriesCount=1+(facebookFollow?1:0)+(linkedinFollow?1:0);
     const q=`INSERT INTO entries(event_slug,first_name,last_name,company,email,phone,email_consent,facebook_follow,linkedin_follow,instagram_follow,entries_count,constant_contact_status)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,FALSE,$10,'pending')
-      ON CONFLICT(event_slug,email) DO NOTHING
+      ON CONFLICT(event_slug,email) DO UPDATE SET first_name=EXCLUDED.first_name,last_name=EXCLUDED.last_name,
+      company=EXCLUDED.company,phone=EXCLUDED.phone,email_consent=EXCLUDED.email_consent,
+      facebook_follow=EXCLUDED.facebook_follow,linkedin_follow=EXCLUDED.linkedin_follow,instagram_follow=FALSE,
+      entries_count=EXCLUDED.entries_count,constant_contact_status='pending'
       RETURNING id,entries_count`;
     const r=await pool.query(q,[EVENT_SLUG,firstName,lastName,company,email,phone,emailConsent,facebookFollow,linkedinFollow,entriesCount]);
-
-    if(r.rowCount===0){
-      return res.status(409).json({
-        ok:false,
-        duplicate:true,
-        error:"You're already entered! We already have an entry for this email address for today's drawing. Only one signup per email address is permitted."
-      });
-    }
-
     let ccStatus="not_connected";
     try{
       const i=await getIntegration();
@@ -324,7 +318,7 @@ app.get("/admin",async(req,res)=>{
   }
   const r=await pool.query(`SELECT * FROM entries WHERE event_slug=$1 ORDER BY created_at DESC`,[EVENT_SLUG]);
   const rows=r.rows.map(x=>`<tr><td>${x.id}</td><td>${htmlEscape(x.first_name)} ${htmlEscape(x.last_name)}</td><td>${htmlEscape(x.company)}</td><td>${htmlEscape(x.email)}</td><td>${x.facebook_follow?"Yes":""}</td><td>${x.linkedin_follow?"Yes":""}</td><td>${x.entries_count}</td><td>${htmlEscape(x.constant_contact_status||"")}</td></tr>`).join("");
-  res.send(`<!doctype html><meta name="viewport" content="width=device-width"><style>body{font-family:Arial;margin:24px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#eee}a{margin-right:16px}</style><h1>${htmlEscape(EVENT_NAME)} Entries</h1><p><a href="/admin/export.csv">Download CSV</a><a href="/admin/constant-contact">Constant Contact</a><a href="/admin/draw">Draw Winner</a></p><table><tr><th>ID</th><th>Name</th><th>Company</th><th>Email</th><th>Facebook</th><th>LinkedIn</th><th>Entries</th><th>Constant Contact</th></tr>${rows}</table>`);
+  res.send(`<!doctype html><meta name="viewport" content="width=device-width"><style>body{font-family:Arial;margin:24px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#eee}a{margin-right:16px}</style><h1>${htmlEscape(EVENT_NAME)} Entries</h1><p><a href="/admin/export.csv">Download CSV</a><a href="/admin/constant-contact">Constant Contact</a><a href="/admin/draw">Draw Winner</a><a href="/admin/clear">Clear Test Entries</a></p><table><tr><th>ID</th><th>Name</th><th>Company</th><th>Email</th><th>Facebook</th><th>LinkedIn</th><th>Entries</th><th>Constant Contact</th></tr>${rows}</table>`);
 });
 app.get("/admin/export.csv",async(req,res)=>{
   if(!adminAuthorized(req)) return res.status(401).send("Unauthorized");
@@ -333,6 +327,64 @@ app.get("/admin/export.csv",async(req,res)=>{
   const rows=[["First Name","Last Name","Company","Email","Phone","Email Consent","Facebook Follow","LinkedIn Follow","Entries","Constant Contact","Created At"],...r.rows.map(x=>[x.first_name,x.last_name,x.company,x.email,x.phone,x.email_consent,x.facebook_follow,x.linkedin_follow,x.entries_count,x.constant_contact_status,new Date(x.created_at).toISOString()])];
   res.type("text/csv").set("Content-Disposition",`attachment; filename="${EVENT_SLUG}-entries.csv"`).send(rows.map(row=>row.map(esc).join(",")).join("\n"));
 });
+
+app.get("/admin/clear",(req,res)=>{
+  if(!adminAuthorized(req)) return res.status(401).send(adminLoginPage());
+  res.send(`<!doctype html>
+  <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Clear Tailgate Thursday Entries</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#f4f6f8;font-family:Arial,sans-serif;color:#171717;display:grid;min-height:100vh;place-items:center;padding:24px}
+    .card{width:min(620px,100%);background:#fff;border-radius:16px;padding:32px;box-shadow:0 12px 35px rgba(0,0,0,.12)}
+    h1{margin:0 0 12px;color:#123f95}
+    .warning{background:#fff1ee;border-left:5px solid #f15a00;padding:14px 16px;margin:20px 0;line-height:1.5}
+    input{width:100%;padding:13px;border:1px solid #bbb;border-radius:8px;font-size:16px;margin-top:8px}
+    button{width:100%;margin-top:16px;padding:14px;border:0;border-radius:8px;background:#b42318;color:#fff;font-size:16px;font-weight:800;cursor:pointer}
+    a{display:inline-block;margin-top:18px;color:#123f95}
+    code{background:#f2f2f2;padding:2px 5px;border-radius:4px}
+  </style></head>
+  <body><div class="card">
+    <h1>Clear Tailgate Thursday Entries</h1>
+    <div class="warning"><strong>Warning:</strong> This permanently deletes every entry currently stored for this event from the ALLFAST signup database. It does not delete contacts from Constant Contact.</div>
+    <p>Use this now to remove today's test records before the live event.</p>
+    <form method="post" action="/admin/clear">
+      <label for="confirm"><strong>Type DELETE ALL ENTRIES to confirm:</strong></label>
+      <input id="confirm" name="confirm" autocomplete="off" required>
+      <button type="submit">DELETE ALL ENTRIES</button>
+    </form>
+    <a href="/admin">Cancel and return to entries</a>
+  </div></body></html>`);
+});
+
+app.post("/admin/clear",async(req,res)=>{
+  if(!adminAuthorized(req)) return res.status(401).send(adminLoginPage());
+  const confirm=String(req.body.confirm||"").trim();
+  if(confirm!=="DELETE ALL ENTRIES"){
+    return res.status(400).send(`<!doctype html><html><body style="font-family:Arial;padding:40px">
+      <h1>Entries were not deleted.</h1>
+      <p>The confirmation text did not match.</p>
+      <p><a href="/admin/clear">Try again</a> &nbsp; <a href="/admin">Back to entries</a></p>
+    </body></html>`);
+  }
+  try{
+    const result=await pool.query("DELETE FROM entries WHERE event_slug=$1",[EVENT_SLUG]);
+    return res.send(`<!doctype html><html><body style="font-family:Arial;padding:40px">
+      <h1>Entries Cleared</h1>
+      <p><strong>${result.rowCount}</strong> entr${result.rowCount===1?"y":"ies"} deleted from the Tailgate Thursday drawing database.</p>
+      <p>Constant Contact contacts were not changed.</p>
+      <p><a href="/admin">Return to entries</a></p>
+    </body></html>`);
+  }catch(err){
+    console.error("Clear entries failed:",err);
+    return res.status(500).send(`<!doctype html><html><body style="font-family:Arial;padding:40px">
+      <h1>Could not clear entries</h1>
+      <p>No confirmation of deletion was returned. Please check the Render logs before trying again.</p>
+      <p><a href="/admin">Back to entries</a></p>
+    </body></html>`);
+  }
+});
+
 app.get("/admin/draw",async(req,res)=>{
   if(!adminAuthorized(req)) return res.status(401).send("Unauthorized");
   const r=await pool.query(`SELECT id,first_name,last_name,company,email,entries_count FROM entries WHERE event_slug=$1`,[EVENT_SLUG]);
